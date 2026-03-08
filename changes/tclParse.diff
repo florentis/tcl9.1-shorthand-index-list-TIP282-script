@@ -1,0 +1,34 @@
+*** ../../tcl9.1-shorthand-index-list-TIP282/generic/tclParse.c	Sat Feb 28 20:54:20 2026
+--- ../generic/tclParse.c	Fri Mar  6 22:52:17 2026
+*************** Tcl_ParseCommand(
+*** 222,227 ****
+--- 222,250 ----
+      if (numBytes < 0 && start) {
+  	numBytes = strlen(start);
+      }
++     if (start[0] == '(' && start[numBytes-1] == ')') {
++ 	// math mode
++ 	//	printf ("Parse Command : %.*s\n", (int)numBytes, start);
++ 	TclParseInit(interp, start, numBytes, parsePtr);
++ 	parsePtr->commentStart = NULL;
++ 	parsePtr->commentSize = 0;
++ 	parsePtr->commandStart = start;
++ 	parsePtr->commandSize = numBytes;
++ 	parsePtr->numWords =2;
++ 	parsePtr->tokenPtr[0].type = TCL_TOKEN_SUB_EXPR;
++ 	parsePtr->tokenPtr[0].numComponents=1;
++ 	parsePtr->tokenPtr[0].start = start;
++ 	parsePtr->tokenPtr[0].size = 0;
++ 	TclGrowParseTokenArray(parsePtr, 1);
++ 	
++ 	tokenPtr = &parsePtr->tokenPtr[1];
++ 	tokenPtr->type = TCL_TOKEN_SIMPLE_WORD;
++ 	tokenPtr->start = start;
++ 	tokenPtr->size = numBytes;
++ 	tokenPtr->numComponents=0;
++ 	return TCL_OK;
++     }
++     
+      TclParseInit(interp, start, numBytes, parsePtr);
+      if ((start == NULL) && (numBytes != 0)) {
+  	if (interp != NULL) {
