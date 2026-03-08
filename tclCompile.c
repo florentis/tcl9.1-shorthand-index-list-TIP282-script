@@ -1143,7 +1143,6 @@ TclSetByteCodeFromAny(
     if (clLocPtr) {
 	compEnv.clNext = &clLocPtr->loc[0];
     }
-    // printf ("code : '%.*s'\n", (int)length, stringPtr);
     if (stringPtr[0] == '(' && stringPtr[length-1] == ')') {
 	TclCompileExpr(interp, stringPtr, length, &compEnv, 0);
 	TclEmitOpcode(		INST_DONE,			&compEnv);
@@ -1151,37 +1150,37 @@ TclSetByteCodeFromAny(
 	TclCompileScript(interp, stringPtr, length, &compEnv);
     
 
-    /*
-     * Compilation succeeded. Add a "done" instruction at the end.
-     */
+	/*
+	 * Compilation succeeded. Add a "done" instruction at the end.
+	 */
 
-    TclEmitOpcode(		INST_DONE,			&compEnv);
+	TclEmitOpcode(		INST_DONE,			&compEnv);
 
-    /*
-     * Check for optimizations!
-     *
-     * If the generated code is free of most hazards, recompile with generation
-     * of INST_START_CMD disabled to produce code that more compact in many
-     * cases, and also sometimes more performant.
-     */
+	/*
+	 * Check for optimizations!
+	 *
+	 * If the generated code is free of most hazards, recompile with generation
+	 * of INST_START_CMD disabled to produce code that more compact in many
+	 * cases, and also sometimes more performant.
+	 */
 
-    if (Tcl_GetParent(interp) == NULL &&
+	if (Tcl_GetParent(interp) == NULL &&
 	    !Tcl_LimitTypeEnabled(interp, TCL_LIMIT_COMMANDS|TCL_LIMIT_TIME)
 	    && IsCompactibleCompileEnv(&compEnv)) {
-	TclFreeCompileEnv(&compEnv);
-	iPtr->compiledProcPtr = procPtr;
-	TclInitCompileEnv(interp, &compEnv, stringPtr, length,
-		iPtr->invokeCmdFramePtr, iPtr->invokeWord);
-	if (clLocPtr) {
-	    compEnv.clNext = &clLocPtr->loc[0];
+	    TclFreeCompileEnv(&compEnv);
+	    iPtr->compiledProcPtr = procPtr;
+	    TclInitCompileEnv(interp, &compEnv, stringPtr, length,
+			      iPtr->invokeCmdFramePtr, iPtr->invokeWord);
+	    if (clLocPtr) {
+		compEnv.clNext = &clLocPtr->loc[0];
+	    }
+
+	    compEnv.atCmdStart = 2;		/* The disabling magic. */
+	    TclCompileScript(interp, stringPtr, length, &compEnv);
+	    assert (compEnv.atCmdStart > 1);
+	    TclEmitOpcode(		INST_DONE,			&compEnv);
+	    assert (compEnv.atCmdStart > 1);
 	}
-	// printf ("optimise");
-	compEnv.atCmdStart = 2;		/* The disabling magic. */
-	TclCompileScript(interp, stringPtr, length, &compEnv);
-	assert (compEnv.atCmdStart > 1);
-	TclEmitOpcode(		INST_DONE,			&compEnv);
-	assert (compEnv.atCmdStart > 1);
-    }
     }
 
     /*
@@ -2397,7 +2396,6 @@ CompileCommandTokens(
     tokenPtr = parsePtr->tokenPtr;
     // Math mode
     if (tokenPtr->type == TCL_TOKEN_SUB_EXPR) {
-	// printf("ici");
 	TclCompileExprCmd(interp, parsePtr, NULL, envPtr);
     } else {
 	cmdKnown = TclWordKnownAtCompileTime(tokenPtr, cmdObj);
@@ -2426,12 +2424,9 @@ CompileCommandTokens(
 	}
     }
 
-    /* If cmdPtr != NULL, try to call cmdPtr->compileProc */
-    //    printf ("avant\n");
     if (cmdPtr) {
 	code = CompileCmdCompileProc(interp, parsePtr, cmdPtr, envPtr);
     }
-    //    printf ("après\n");
 
     if (code == TCL_ERROR) {
 	/*
@@ -2615,28 +2610,17 @@ TclCompileScript(
 	     */
 	    iPtr->numLevels++;
 	    
-	    //	    printf("avant Compile command Token\n");
 	    if (parsePtr->tokenPtr[0].type == TCL_TOKEN_SUB_EXPR) {
 		//math mode
-		// printf("avant Compile Expr command, index = %d, depth = %d \n", (int)lastCmdIdx, (int)envPtr->currStackDepth);
-		DefineLineInformation;
 		Tcl_Size savedStackDepth = envPtr->currStackDepth;
-		
-		//	PUSH_EXPR_TOKEN(&parsePtr->tokenPtr[1], 0); 
-		/* PUSH( ""); */
-		// TclCompileExprCmd(interp, parsePtr, NULL, envPtr);
 		TclCompileExpr(interp, parsePtr->tokenPtr[1].start, parsePtr->tokenPtr[1].size, envPtr, true);
-		
 		 lastCmdIdx=envPtr->numCommands;
 		 envPtr->currStackDepth = savedStackDepth;
 		depth = TclGetStackDepth(envPtr);
-		//		// printf("après Compile Expr command : index %d, depth = %d \n", (int)lastCmdIdx, (int)envPtr->currStackDepth);
-		//printf("après Compile Expr command : index %d, depth = %d \n", (int)lastCmdIdx, (int)depth);
 		numBytes=0;
 	    } else {
 		lastCmdIdx = CompileCommandTokens(interp, parsePtr, envPtr);
 	    }
-	    //	    printf("après Compile command Token\n");
 	    iPtr->numLevels--;
 
 	    /*
